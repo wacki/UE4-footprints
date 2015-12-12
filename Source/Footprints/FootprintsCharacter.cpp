@@ -1,6 +1,9 @@
 // Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
 
 #include "Footprints.h"
+#include "Footprints/FootprintTypes.h"
+#include "DrawDebugHelpers.h"
+#include "Engine.h"
 #include "FootprintsCharacter.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -124,4 +127,48 @@ void AFootprintsCharacter::MoveRight(float Value)
 		// add movement in that direction
 		AddMovementInput(Direction, Value);
 	}
+}
+
+
+void AFootprintsCharacter::Trace(FHitResult& OutHit, const FVector& Location) const
+{
+    FVector Start = Location;
+    FVector End = Location;
+
+    Start.Z += 20.0f;
+    End.Z -= 20.0f;
+
+    //Re-initialize hit info
+    OutHit = FHitResult(ForceInit);
+
+    FCollisionQueryParams TraceParams(FName(TEXT("Footprint trace")), true, this);
+    TraceParams.bReturnPhysicalMaterial = true;
+
+    GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility, TraceParams);
+}
+
+void AFootprintsCharacter::FootDown(const UArrowComponent* FootArrow) const
+{
+    FHitResult HitResult;
+    FVector FootWorldPosition = FootArrow->GetComponentTransform().GetLocation();
+    FVector Forward = FootArrow->GetForwardVector();
+
+    Trace(HitResult, FootWorldPosition);    
+    UPhysicalMaterial* PhysMat = HitResult.PhysMaterial.Get();
+
+    // Retrieve the particle system and decal object to spawn for our current ground type
+    UParticleSystem* ParticleFX = FootprintTypes->GetFootprintFX(PhysMat);
+    TSubclassOf<ADecalActor> Decal = FootprintTypes->GetFootprintDecal(PhysMat);
+        
+    // Create a rotator using the landscape normal and our foot forward vectors
+    // Note that we use the function ZX to enforce the normal direction (Z)
+    FQuat floorRot = FRotationMatrix::MakeFromZX(HitResult.Normal, Forward).ToQuat();
+    FQuat offsetRot(FRotator(0.0f, -90.0f, 0.0f));
+    FRotator Rotation = (floorRot * offsetRot).Rotator();
+
+    // Spawn decal and particle emitter
+    if(Decal)
+        AActor* DecalInstance = GetWorld()->SpawnActor(Decal, &HitResult.Location, &Rotation);
+    if(ParticleFX)
+        UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ParticleFX, HitResult.Location);
 }

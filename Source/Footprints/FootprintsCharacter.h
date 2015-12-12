@@ -57,10 +57,18 @@ protected:
 	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
 	// End of APawn interface
 
+    /** footprint effect config */
+    UPROPERTY(EditDefaultsOnly, Category = Effects)
+    class UFootprintTypes* FootprintTypes;
+
+    void Trace(FHitResult& OutHit, const FVector& Location) const;
 public:
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+
+    UFUNCTION(BlueprintCallable, Category = "Character")
+    void FootDown(const UArrowComponent* FootArrow) const;
 };
 
